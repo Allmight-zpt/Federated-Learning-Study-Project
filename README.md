@@ -2,14 +2,14 @@
 
 ## 简介
 
-基于pytorch框架，在一台计算机上模拟联邦学习场景，实现横向联邦图像分类任务。
+基于pytorch框架，在一台计算机上模拟联邦学习场景，实现横向联邦图像分类任务。基于FederatedAI开源教程进行二次开发，利用多线程实现了客户端并行训练，并实现了NonIID数据场景。
 
 
 
 ## 运行代码
 
 ```shell
-python main.py --conf ./utils/conf.json
+python main.py --conf ./utils/conf.json --log_path ./log --log_file_name main.log --save_model_path ./model
 ```
 
 
@@ -31,13 +31,17 @@ python main.py --conf ./utils/conf.json
 
 ## 文件介绍
 
-- conf.json 配置文件
 - client.py 客户端节点实现
 - server.py 服务器节点实现
 - datasets.py 数据集读取模块，实现NonIID数据集的构造
 - models.py 模型读取模块
 - myThread.py 线程模块
 - main.py 用于训练模型
+- utils 存放conf.json配置文件
+- data 存放数据集
+- log 存放训练日志
+- model 存放训练模型
+- (data、log、model文件夹会自动创建）
 
 
 
@@ -58,3 +62,5 @@ python main.py --conf ./utils/conf.json
 
   ## 参考资料
 
+- [联邦学习教程](https://github.com/FederatedAI/Practicing-Federated-Learning)
+- [NonIID数据构造教程](https://www.cnblogs.com/orion-orion/p/15991423.html)

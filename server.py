@@ -1,5 +1,7 @@
 import models
 import torch
+import logging
+import os
 
 '''
 服务端对象的实现
@@ -20,7 +22,7 @@ class Server(object):
 	定义客户端模型聚合函数，即全局模型的更新函数
 	weight_accumulator 存储了每一个客户端的上传参数的变化值
 	'''
-	def model_aggregate(self, weight_accumulator):
+	def model_aggregate(self, weight_accumulator,global_epoch,args,logger):
 		# 遍历全局模型的每一层
 		for name, data in self.global_model.state_dict().items():
 			# 计算每一层的更新值
@@ -30,6 +32,13 @@ class Server(object):
 				data.add_(update_per_layer.to(torch.int64))
 			else:
 				data.add_(update_per_layer)
+		# 保存全局模型
+		logger.info('saving model for global epoch {}'.format(global_epoch + 1))
+		model_path = os.path.join(args.save_model_path, 'epoch{}'.format(global_epoch + 1))
+		if not os.path.exists(model_path):
+			os.mkdir(model_path)
+		torch.save(self.global_model.state_dict(),model_path + '/global_model.pth')
+		logger.info('saved model')
 	
 	'''
 	定义评估函数

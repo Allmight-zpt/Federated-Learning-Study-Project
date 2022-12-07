@@ -1,6 +1,8 @@
 import argparse
 import json
 import random
+import logging
+import os
 
 import datasets
 
@@ -13,22 +15,64 @@ from myThread import MyThread
 '''
 客户端训练函数，用于多线程时调用
 '''
-def run(client,global_model):
-    diff = client.local_train(global_model)
+def run(client,global_model,logger):
+    diff = client.local_train(global_model,logger)
     return diff
 
-if __name__ == '__main__':
 
-    # 设置命令行程序
+'''
+获取控制台参数
+'''
+def set_args():
     parser = argparse.ArgumentParser(description='Federated Learning')
-    parser.add_argument('-c', '--conf', dest='conf')
+    parser.add_argument('--conf', default='./utils/conf.json',type=str,help='训练配置信息')
+    parser.add_argument('--log_path', default='./log', type=str, required=False, help='日志保存目录')
+    parser.add_argument('--log_file_name', default='main.log', type=str, required=False, help='日志文件名')
+    parser.add_argument('--save_model_path', default='./model',type=str, required=False, help='模型保存目录')
+    return parser.parse_args()
+
+
+'''
+将日志输出到控制台和日志文件
+'''
+def create_logger(args):
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
+    formatter = logging.Formatter(
+        '%(asctime)s - %(levelname)s - %(message)s')
+
+    # 创建一个handler，用于写入日志文件
+    file_handler = logging.FileHandler(
+        filename=args.log_path + '/' + args.log_file_name)
+    file_handler.setFormatter(formatter)
+    file_handler.setLevel(logging.INFO)
+    logger.addHandler(file_handler)
+
+    # 创建一个handler，用于将日志输出到控制台
+    console = logging.StreamHandler()
+    console.setLevel(logging.DEBUG)
+    console.setFormatter(formatter)
+    logger.addHandler(console)
+
+    return logger
+
+
+if __name__ == '__main__':
     # 获取所有的参数
-    args = parser.parse_args()
+    args = set_args()
+    # 创建存放日志和存放模型的文件夹
+    if not os.path.exists(args.log_path):
+        os.mkdir(args.log_path)
+    if not os.path.exists(args.save_model_path):
+        os.mkdir(args.save_model_path)
+
+    # 获取日志输出对象
+    logger = create_logger(args)
 
     # 读取配置文件
     with open(args.conf, 'r') as f:
         conf = json.load(f)
-
     # 获取数据集, 加载描述信息
     train_datasets, eval_datasets = datasets.get_dataset("./data/", conf["type"])
 
@@ -74,7 +118,7 @@ if __name__ == '__main__':
         if conf["parallel"] == 0:
             # 遍历客户端，每个客户端本地训练模型
             for c in candidates:
-                diff = c.local_train(server.global_model)
+                diff = c.local_train(server.global_model,logger)
                 
                 # 根据客户端的参数差值字典更新总体权重
                 for name, params in server.global_model.state_dict().items():
@@ -88,7 +132,7 @@ if __name__ == '__main__':
             diff_list = []
             # 为每个客户端构造一个本地训练线程
             for c in candidates:
-                t = MyThread(run,args=(c,server.global_model))
+                t = MyThread(run,args=(c,server.global_model,logger))
                 thread_list.append(t)
             # 启动每个客户端的训练线程
             for t in thread_list:
@@ -106,9 +150,9 @@ if __name__ == '__main__':
         ##########################################################################
 
         # 模型参数聚合
-        server.model_aggregate(weight_accumulator)
+        server.model_aggregate(weight_accumulator,e,args,logger)
 
         # 模型评估
         acc, loss = server.model_eval()
 
-        print("Epoch %d, acc: %f, loss: %f\n" % (e, acc, loss))
+        logger.info("Epoch {}, acc: {}, loss: {}\n".format(e, acc, loss))

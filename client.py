@@ -1,6 +1,7 @@
 import models
 import torch
 import copy
+import logging
 
 '''
 客户端对象的实现
@@ -20,7 +21,6 @@ class Client(object):
 		self.train_dataset = train_dataset
 		#############################IID数据################################
 		if client_idcs == None:
-			print("IID")
 			# 按客户端id获取数据
 			# 因为server.py中shuffle = True因此此处得到的时IID数据
 			all_range = list(range(len(self.train_dataset)))
@@ -33,7 +33,6 @@ class Client(object):
 
 		############################NonIID数据##############################
 		else:
-			print("NonIID")
 			# 定义数据加载器
 			self.train_loader = torch.utils.data.DataLoader(self.train_dataset, batch_size=conf["batch_size"], 
 										sampler=torch.utils.data.sampler.SubsetRandomSampler(client_idcs[self.client_id]))
@@ -44,7 +43,7 @@ class Client(object):
 	'''
 	定义客户端本地训练函数
 	'''
-	def local_train(self, model):
+	def local_train(self, model,logger):
 		# 客户端首先用服务器端下发的全局模型覆盖本地模型
 		for name, param in model.state_dict().items():
 			self.local_model.state_dict()[name].copy_(param.clone())
@@ -71,7 +70,7 @@ class Client(object):
 				loss.backward()
 				# 更新参数
 				optimizer.step()
-			print("Epoch %d done." % e)	
+			logger.info('client {} epoch {} done.'.format(self.client_id, e))
 		diff = dict()
 		for name, data in self.local_model.state_dict().items():
 			# 计算训练前后的差值，最终会返回到服务端更新服务端的模型
